@@ -1,0 +1,2221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Master - Network Quiz App</title>
+    
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Navigation */
+        nav {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        nav .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav h1 {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        nav button {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.3s;
+        }
+
+        nav button:hover {
+            background-color: #c0392b;
+        }
+
+        /* Auth Forms */
+        .auth-container {
+            max-width: 400px;
+            margin: 4rem auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .auth-container h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            color: #2c3e50;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background-color 0.3s;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-primary {
+            background-color: #3498db;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-success {
+            background-color: #27ae60;
+        }
+
+        .btn-success:hover {
+            background-color: #229954;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-secondary {
+            background-color: #95a5a6;
+        }
+
+        .btn-secondary:hover {
+            background-color: #7f8c8d;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .card p {
+            color: #666;
+            margin-bottom: 1rem;
+        }
+
+        .card .stats {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        /* Tables */
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background-color: #34495e;
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 500;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* Quiz Taking Interface */
+        .quiz-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .quiz-header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .quiz-header h2 {
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-bar {
+            background-color: #ecf0f1;
+            height: 8px;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+
+        .progress-fill {
+            background-color: #3498db;
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .question-container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        .timer {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #e74c3c;
+            margin-bottom: 1.5rem;
+        }
+
+        .timer.warning {
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .question-text {
+            font-size: 1.25rem;
+            margin-bottom: 2rem;
+            color: #2c3e50;
+        }
+
+        .answer-options {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .answer-option {
+            padding: 1rem 1.5rem;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: white;
+        }
+
+        .answer-option:hover {
+            border-color: #3498db;
+            background-color: #f8f9fa;
+        }
+
+        .answer-option.selected {
+            border-color: #3498db;
+            background-color: #e3f2fd;
+        }
+
+        .answer-option.correct {
+            border-color: #27ae60;
+            background-color: #d5f4e6;
+            animation: correctAnswer 0.5s;
+        }
+
+        .answer-option.incorrect {
+            border-color: #e74c3c;
+            background-color: #fadbd8;
+            animation: incorrectAnswer 0.5s;
+        }
+
+        @keyframes correctAnswer {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        @keyframes incorrectAnswer {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            50% { transform: translateX(10px); }
+            75% { transform: translateX(-5px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* Feedback Messages */
+        .feedback {
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .feedback.correct {
+            background-color: #d5f4e6;
+            color: #27ae60;
+        }
+
+        .feedback.incorrect {
+            background-color: #fadbd8;
+            color: #e74c3c;
+        }
+
+        /* Results Summary */
+        .results-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+
+        .score-display {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 1rem 0;
+        }
+
+        .score-display.perfect {
+            color: #27ae60;
+        }
+
+        /* Fireworks Canvas */
+        #fireworks {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        /* Sparkles Animation */
+        .sparkles {
+            position: relative;
+            display: inline-block;
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background-color: #ffd700;
+            border-radius: 50%;
+            animation: sparkle 1s ease-out forwards;
+        }
+
+        @keyframes sparkle {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(var(--x), var(--y)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h3 {
+            color: #2c3e50;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 1rem;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+            margin-bottom: -2px;
+        }
+
+        .tab.active {
+            color: #3498db;
+            border-bottom-color: #3498db;
+        }
+
+        .tab:hover {
+            color: #2980b9;
+        }
+
+        /* Hidden by default */
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .auth-container {
+                margin: 2rem auto;
+                padding: 1.5rem;
+            }
+            
+            .question-container {
+                padding: 1.5rem;
+            }
+            
+            .tabs {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="hidden" id="navbar">
+        <div class="nav-content">
+            <h1>Quiz Master</h1>
+            <div>
+                <span id="userInfo"></span>
+                <button onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Login Screen -->
+    <div id="loginScreen" class="auth-container">
+        <h2 id="authTitle">Login to Quiz Master</h2>
+        <form id="authForm" onsubmit="handleAuth(event)">
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" required minlength="6">
+            </div>
+            <div class="form-group" id="confirmPasswordGroup" style="display: none;">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" minlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary btn-full" id="authButton">Login</button>
+        </form>
+        
+        <div style="text-align: center; margin-top: 1rem;">
+            <p id="authSwitchText">Don't have an account? 
+                <a href="#" onclick="toggleAuthMode()" style="color: #3498db; text-decoration: none;">Sign up here</a>
+            </p>
+        </div>
+        
+        <div id="authMessage" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px; display: none;"></div>
+    </div>
+
+    <!-- Admin Dashboard -->
+    <div id="adminDashboard" class="container hidden">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab(event, 'overview')">Overview</button>
+            <button class="tab" onclick="switchTab(event, 'users')">Users</button>
+            <button class="tab" onclick="switchTab(event, 'quizzes')">Quizzes</button>
+            <button class="tab" onclick="switchTab(event, 'import')">Import Quiz</button>
+            <button class="tab" onclick="switchTab(event, 'results')">Results</button>
+        </div>
+
+        <!-- Overview Tab -->
+        <div id="overviewTab" class="tab-content">
+            <h2>Dashboard Overview</h2>
+            <div class="dashboard">
+                <div class="card">
+                    <h3>Total Users</h3>
+                    <p class="stats">
+                        <span id="totalUsers">0</span> registered users
+                    </p>
+                </div>
+                <div class="card">
+                    <h3>Active Quizzes</h3>
+                    <p class="stats">
+                        <span id="totalQuizzes">0</span> published quizzes
+                    </p>
+                </div>
+                <div class="card">
+                    <h3>Completion Rate</h3>
+                    <p class="stats">
+                        <span id="completionRate">0%</span> average
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users Tab -->
+        <div id="usersTab" class="tab-content hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2>User Management</h2>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Created</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- User rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Quizzes Tab -->
+        <div id="quizzesTab" class="tab-content hidden">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2>Quiz Management</h2>
+            </div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>Questions</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quizzesTableBody">
+                        <!-- Quiz rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Import Quiz Tab -->
+        <div id="importTab" class="tab-content hidden">
+            <h2>Create Quiz from Text</h2>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+                <!-- Left Column: Form -->
+                <div class="card">
+                    <h3>Quiz Details</h3>
+                    <div class="form-group">
+                        <label for="importQuizTitle">Quiz Title</label>
+                        <input type="text" id="importQuizTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="importQuizDescription">Quiz Description</label>
+                        <textarea id="importQuizDescription" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="quizTextImport">Quiz Content</label>
+                        <textarea id="quizTextImport" rows="20" placeholder="Paste your quiz content here using the format shown on the right..."></textarea>
+                    </div>
+                    <button class="btn btn-primary btn-full" onclick="parseAndCreateQuizFromText()">Create Quiz from Text</button>
+                    
+                    <div id="importMessage" style="margin-top: 1rem; padding: 0.75rem; border-radius: 4px; display: none;"></div>
+                </div>
+
+                <!-- Right Column: Format Guide -->
+                <div class="card">
+                    <h3>Text Format Guide</h3>
+                    <p>Use this exact format for your quiz content:</p>
+                    <pre style="background: #f8f9fa; padding: 1rem; border-radius: 4px; font-size: 0.9rem; overflow-x: auto;">Q1: What is the capital of France?
+*A) Berlin
+*B) Paris (correct)
+*C) London
+*D) Madrid
+
+Q2: Which planet is closest to the Sun?
+*A) Mercury (correct)
+*B) Venus
+*C) Earth
+*D) Mars
+
+Q3: What is 2 + 2?
+*A) 3
+*B) 4 (correct)
+*C) 5
+*D) 6</pre>
+                    
+                    <h4>Format Rules:</h4>
+                    <ul style="font-size: 0.9rem; color: #666;">
+                        <li>Start each question with "Q#:" (Q1:, Q2:, etc.)</li>
+                        <li>Each option starts with "*Letter)" (e.g., *A), *B), *C), *D))</li>
+                        <li>Mark the correct answer by adding "(correct)" after the option text</li>
+                        <li>Separate questions with one blank line</li>
+                        <li>You can have 2-6 options per question</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Tab -->
+        <div id="resultsTab" class="tab-content hidden">
+            <h2>Quiz Results</h2>
+            <div class="form-group">
+                <label for="resultQuizSelect">Select Quiz</label>
+                <select id="resultQuizSelect" onchange="loadQuizResults()">
+                    <option value="">-- Select a Quiz --</option>
+                </select>
+            </div>
+            <div id="quizResultsContainer" class="hidden">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Attempts</th>
+                                <th>Best Score</th>
+                                <th>Status</th>
+                                <th>Last Attempt</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <!-- Results will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Dashboard -->
+    <div id="userDashboard" class="container hidden">
+        <h2>Available Quizzes</h2>
+        <div class="dashboard" id="userQuizList">
+            <!-- Quiz cards will be populated here -->
+        </div>
+
+        <h2 style="margin-top: 3rem;">My Results</h2>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Quiz</th>
+                        <th>Attempts</th>
+                        <th>Best Score</th>
+                        <th>Status</th>
+                        <th>Last Attempt</th>
+                    </tr>
+                </thead>
+                <tbody id="userResultsTableBody">
+                    <!-- User results will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quiz Taking Interface -->
+    <div id="quizInterface" class="quiz-container hidden">
+        <div class="quiz-header">
+            <h2 id="quizTitle"></h2>
+            <p id="quizDescription"></p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="question-container">
+            <div class="timer" id="timer">30</div>
+            <div class="question-text" id="questionText"></div>
+            <div class="answer-options" id="answerOptions"></div>
+            <div id="feedbackMessage"></div>
+            <button id="nextButton" class="btn btn-primary btn-full hidden" onclick="nextQuestion()">Next Question</button>
+        </div>
+    </div>
+
+    <!-- Results Summary -->
+    <div id="resultsScreen" class="results-container hidden">
+        <h2 id="resultsTitle"></h2>
+        <div class="score-display" id="scoreDisplay"></div>
+        <p id="resultsMessage"></p>
+        <div style="margin-top: 2rem;">
+            <button id="retryButton" class="btn btn-primary" onclick="retryQuiz()">Try Again</button>
+            <button class="btn btn-secondary" onclick="returnToDashboard()">Back to Dashboard</button>
+        </div>
+    </div>
+
+    <!-- Fireworks Canvas -->
+    <canvas id="fireworks"></canvas>
+
+    <script>
+        // ============================================================================= 
+        // SUPABASE CONFIGURATION - UPDATE WITH YOUR CREDENTIALS
+        // =============================================================================
+        const supabaseUrl = 'https://oobxytfdswamydezhtfn.supabase.co'; // Replace with your Supabase URL
+        const supabaseKey =  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vYnh5dGZkc3dhbXlkZXpodGZuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDgwMjM5MjgsImV4cCI6MjA2MzU5OTkyOH0.rsk3mbAxsPKouuSamvR-aS0OOERj929hMuwgQ9v2pqo'; // Replace with your Supabase anon key
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // =============================================================================
+        // STATE MANAGEMENT (NO GLOBAL VARIABLES FOR USER DATA)
+        // =============================================================================
+
+        // Only keep essential UI state - no user data
+        let isSignUpMode = false;
+        let quizTimer = null;
+
+        // =============================================================================
+        // AUTHENTICATION FUNCTIONS
+        // =============================================================================
+
+        // Toggle between login and signup
+        function toggleAuthMode() {
+            isSignUpMode = !isSignUpMode;
+            const title = document.getElementById('authTitle');
+            const button = document.getElementById('authButton');
+            const switchText = document.getElementById('authSwitchText');
+            const confirmGroup = document.getElementById('confirmPasswordGroup');
+            
+            if (isSignUpMode) {
+                title.textContent = 'Sign Up for Quiz Master';
+                button.textContent = 'Sign Up';
+                confirmGroup.style.display = 'block';
+                document.getElementById('confirmPassword').required = true;
+            } else {
+                title.textContent = 'Login to Quiz Master';
+                button.textContent = 'Login';
+                confirmGroup.style.display = 'none';
+                document.getElementById('confirmPassword').required = false;
+            }
+            
+            // Update switch text safely
+            const linkHtml = `<a href="#" onclick="toggleAuthMode()" style="color: #3498db; text-decoration: none;">${isSignUpMode ? 'Login here' : 'Sign up here'}</a>`;
+            switchText.innerHTML = isSignUpMode ? 
+                `Already have an account? ${linkHtml}` : 
+                `Don't have an account? ${linkHtml}`;
+            
+            hideAuthMessage();
+        }
+
+        // Handle both login and signup
+        async function handleAuth(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (isSignUpMode) {
+                if (password !== confirmPassword) {
+                    showAuthMessage('Passwords do not match', 'error');
+                    return;
+                }
+                await signUp(email, password);
+            } else {
+                await login(email, password);
+            }
+        }
+
+        // Sign up function
+        async function signUp(email, password) {
+            try {
+                showAuthMessage('Creating account...', 'info');
+                
+                const { data, error } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                });
+
+                if (error) throw error;
+
+                if (data.user && !data.user.email_confirmed_at) {
+                    showAuthMessage('Please check your email and click the confirmation link to activate your account.', 'success');
+                } else {
+                    showAuthMessage('Account created successfully!', 'success');
+                }
+            } catch (error) {
+                console.error('Sign up error:', error);
+                showAuthMessage(error.message, 'error');
+            }
+        }
+
+        // Login function
+        async function login(email, password) {
+            try {
+                showAuthMessage('Signing in...', 'info');
+                
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+
+                if (error) throw error;
+
+                showAuthMessage('Login successful!', 'success');
+                
+            } catch (error) {
+                console.error('Login error:', error);
+                showAuthMessage(error.message, 'error');
+            }
+        }
+
+        // Logout function
+        async function logout() {
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) throw error;
+                
+                showLoginScreen();
+                
+            } catch (error) {
+                console.error('Logout error:', error);
+                alert('Error logging out: ' + error.message);
+            }
+        }
+
+        // Show/hide auth messages
+        function showAuthMessage(message, type) {
+            const messageDiv = document.getElementById('authMessage');
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+            
+            messageDiv.style.backgroundColor = type === 'error' ? '#fadbd8' : 
+                                               type === 'success' ? '#d5f4e6' : '#e3f2fd';
+            messageDiv.style.color = type === 'error' ? '#e74c3c' : 
+                                    type === 'success' ? '#27ae60' : '#3498db';
+            messageDiv.style.border = `1px solid ${type === 'error' ? '#e74c3c' : 
+                                              type === 'success' ? '#27ae60' : '#3498db'}`;
+        }
+
+        function hideAuthMessage() {
+            document.getElementById('authMessage').style.display = 'none';
+        }
+
+        // Show login screen
+        function showLoginScreen() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('navbar').classList.add('hidden');
+            document.getElementById('adminDashboard').classList.add('hidden');
+            document.getElementById('userDashboard').classList.add('hidden');
+            document.getElementById('quizInterface').classList.add('hidden');
+            document.getElementById('resultsScreen').classList.add('hidden');
+            
+            // Clear form
+            document.getElementById('email').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('confirmPassword').value = '';
+            hideAuthMessage();
+        }
+
+        // Get current user from session
+        async function getCurrentUser() {
+            const { data: { user } } = await supabase.auth.getUser();
+            return user;
+        }
+
+        // Get or create user profile
+        async function getUserProfile(userId) {
+            try {
+                const { data: profile, error: fetchError } = await supabase
+                    .from('user_profiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .single();
+
+                if (fetchError && fetchError.code !== 'PGRST116') {
+                    throw fetchError;
+                }
+
+                if (profile) {
+                    return profile;
+                }
+
+                // Create profile if it doesn't exist
+                const user = await getCurrentUser();
+                const { data: newProfile, error: insertError } = await supabase
+                    .from('user_profiles')
+                    .insert([
+                        {
+                            id: userId,
+                            username: user.email.split('@')[0],
+                            full_name: '',
+                            role: 'user'
+                        }
+                    ])
+                    .select()
+                    .single();
+
+                if (insertError) throw insertError;
+                return newProfile;
+                
+            } catch (error) {
+                console.error('Error with user profile:', error);
+                const user = await getCurrentUser();
+                return {
+                    id: userId,
+                    username: user?.email?.split('@')[0] || 'unknown',
+                    role: 'user'
+                };
+            }
+        }
+
+        // Handle authentication state changes
+        supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log('Auth event:', event, session);
+            
+            if (event === 'SIGNED_IN' && session) {
+                const userProfile = await getUserProfile(session.user.id);
+                
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('navbar').classList.remove('hidden');
+                document.getElementById('userInfo').textContent = `${userProfile.username} (${userProfile.role})`;
+                
+                if (userProfile.role === 'admin') {
+                    showAdminDashboard();
+                } else {
+                    showUserDashboard();
+                }
+                
+            } else if (event === 'SIGNED_OUT') {
+                showLoginScreen();
+            }
+        });
+
+        // Check auth status on page load
+        async function checkAuthStatus() {
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    console.error('Error getting session:', error);
+                    showLoginScreen();
+                    return;
+                }
+
+                if (session) {
+                    const userProfile = await getUserProfile(session.user.id);
+                    
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('navbar').classList.remove('hidden');
+                    document.getElementById('userInfo').textContent = `${userProfile.username} (${userProfile.role})`;
+                    
+                    if (userProfile.role === 'admin') {
+                        showAdminDashboard();
+                    } else {
+                        showUserDashboard();
+                    }
+                } else {
+                    showLoginScreen();
+                }
+            } catch (error) {
+                console.error('Error checking auth status:', error);
+                showLoginScreen();
+            }
+        }
+
+        // =============================================================================
+        // UTILITY FUNCTIONS
+        // =============================================================================
+
+        // XSS prevention utility
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Create safe DOM element with text content
+        function createTextElement(tagName, textContent, className = '') {
+            const element = document.createElement(tagName);
+            element.textContent = textContent;
+            if (className) element.className = className;
+            return element;
+        }
+
+        // =============================================================================
+        // ADMIN DASHBOARD FUNCTIONS
+        // =============================================================================
+
+        function showAdminDashboard() {
+            document.getElementById('adminDashboard').classList.remove('hidden');
+            updateOverview();
+            loadUsers();
+            loadQuizzes();
+        }
+
+        function switchTab(event, tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            
+            document.getElementById(tabName + 'Tab').classList.remove('hidden');
+            event.target.classList.add('active');
+            
+            switch(tabName) {
+                case 'overview':
+                    updateOverview();
+                    break;
+                case 'users':
+                    loadUsers();
+                    break;
+                case 'quizzes':
+                    loadQuizzes();
+                    break;
+                case 'import':
+                    document.getElementById('importMessage').style.display = 'none';
+                    break;
+                case 'results':
+                    loadResultsTab();
+                    break;
+            }
+        }
+
+        async function updateOverview() {
+            try {
+                const [usersResult, quizzesResult, attemptsResult, passedResult] = await Promise.all([
+                    supabase.from('user_profiles').select('id', { count: 'exact' }),
+                    supabase.from('quizzes').select('id', { count: 'exact' }).eq('published', true),
+                    supabase.from('quiz_attempts').select('id', { count: 'exact' }),
+                    supabase.from('quiz_attempts').select('id', { count: 'exact' }).eq('is_passed', true)
+                ]);
+
+                const userCount = usersResult.count || 0;
+                const quizCount = quizzesResult.count || 0;
+                const totalAttempts = attemptsResult.count || 0;
+                const passedAttempts = passedResult.count || 0;
+                
+                document.getElementById('totalUsers').textContent = userCount.toString();
+                document.getElementById('totalQuizzes').textContent = quizCount.toString();
+                
+                const rate = totalAttempts > 0 ? ((passedAttempts / totalAttempts) * 100).toFixed(1) : '0';
+                document.getElementById('completionRate').textContent = rate + '%';
+                
+            } catch (error) {
+                console.error('Error updating overview:', error);
+                document.getElementById('totalUsers').textContent = '0';
+                document.getElementById('totalQuizzes').textContent = '0';
+                document.getElementById('completionRate').textContent = '0%';
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const { data: profiles, error } = await supabase
+                    .from('user_profiles')
+                    .select('id, username, full_name, role, created_at')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                const tbody = document.getElementById('usersTableBody');
+                tbody.innerHTML = '';
+                
+                profiles.forEach(profile => {
+                    const tr = document.createElement('tr');
+                    
+                    // Create cells safely
+                    const usernameCell = createTextElement('td', profile.username || 'N/A');
+                    const emailCell = createTextElement('td', 'N/A'); // Email not available in profile
+                    const roleCell = createTextElement('td', profile.role);
+                    const dateCell = createTextElement('td', new Date(profile.created_at).toLocaleDateString());
+                    const statusCell = createTextElement('td', 'Active');
+                    
+                    const actionsCell = document.createElement('td');
+                    const roleButton = document.createElement('button');
+                    roleButton.className = 'btn btn-secondary';
+                    roleButton.textContent = 'Change Role';
+                    roleButton.onclick = () => changeUserRole(profile.id);
+                    actionsCell.appendChild(roleButton);
+                    
+                    tr.appendChild(usernameCell);
+                    tr.appendChild(emailCell);
+                    tr.appendChild(roleCell);
+                    tr.appendChild(dateCell);
+                    tr.appendChild(statusCell);
+                    tr.appendChild(actionsCell);
+                    
+                    tbody.appendChild(tr);
+                });
+                
+            } catch (error) {
+                console.error('Error loading users:', error);
+                alert('Error loading users: ' + error.message);
+            }
+        }
+
+        async function changeUserRole(userId) {
+            const newRole = prompt('Enter new role (user/admin):');
+            if (!newRole || !['user', 'admin'].includes(newRole.toLowerCase())) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('user_profiles')
+                    .update({ role: newRole.toLowerCase() })
+                    .eq('id', userId);
+
+                if (error) throw error;
+                
+                alert('User role updated successfully');
+                loadUsers();
+                
+            } catch (error) {
+                console.error('Error updating user role:', error);
+                alert('Error updating user role: ' + error.message);
+            }
+        }
+
+        async function loadQuizzes() {
+            try {
+                const { data: quizzes, error } = await supabase
+                    .from('quizzes')
+                    .select(`
+                        id,
+                        title,
+                        description,
+                        published,
+                        created_at,
+                        questions (count)
+                    `)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                const tbody = document.getElementById('quizzesTableBody');
+                tbody.innerHTML = '';
+                
+                quizzes.forEach(quiz => {
+                    const questionCount = quiz.questions[0]?.count || 0;
+                    const tr = document.createElement('tr');
+                    
+                    // Create cells safely
+                    const titleCell = createTextElement('td', quiz.title);
+                    const countCell = createTextElement('td', questionCount.toString());
+                    const statusCell = createTextElement('td', quiz.published ? 'Published' : 'Draft');
+                    const dateCell = createTextElement('td', new Date(quiz.created_at).toLocaleDateString());
+                    
+                    const actionsCell = document.createElement('td');
+                    
+                    const publishButton = document.createElement('button');
+                    publishButton.className = `btn ${quiz.published ? 'btn-secondary' : 'btn-success'}`;
+                    publishButton.textContent = quiz.published ? 'Unpublish' : 'Publish';
+                    publishButton.onclick = () => togglePublish(quiz.id);
+                    
+                    const deleteButton = document.createElement('button');
+                    deleteButton.className = 'btn btn-danger';
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.onclick = () => deleteQuiz(quiz.id);
+                    deleteButton.style.marginLeft = '0.5rem';
+                    
+                    actionsCell.appendChild(publishButton);
+                    actionsCell.appendChild(deleteButton);
+                    
+                    tr.appendChild(titleCell);
+                    tr.appendChild(countCell);
+                    tr.appendChild(statusCell);
+                    tr.appendChild(dateCell);
+                    tr.appendChild(actionsCell);
+                    
+                    tbody.appendChild(tr);
+                });
+                
+            } catch (error) {
+                console.error('Error loading quizzes:', error);
+                alert('Error loading quizzes: ' + error.message);
+            }
+        }
+
+        async function togglePublish(quizId) {
+            try {
+                const { data: quiz, error: fetchError } = await supabase
+                    .from('quizzes')
+                    .select('published, questions (count)')
+                    .eq('id', quizId)
+                    .single();
+
+                if (fetchError) throw fetchError;
+                
+                const questionCount = quiz.questions[0]?.count || 0;
+                
+                if (!quiz.published && questionCount === 0) {
+                    alert('Cannot publish a quiz without questions');
+                    return;
+                }
+                
+                const { error } = await supabase
+                    .from('quizzes')
+                    .update({ published: !quiz.published })
+                    .eq('id', quizId);
+
+                if (error) throw error;
+                
+                loadQuizzes();
+                updateOverview();
+                
+            } catch (error) {
+                console.error('Error toggling publish status:', error);
+                alert('Error updating quiz: ' + error.message);
+            }
+        }
+
+        async function deleteQuiz(quizId) {
+            if (!confirm('Are you sure you want to delete this quiz? This will also delete all associated questions and results.')) {
+                return;
+            }
+            
+            try {
+                const { error } = await supabase
+                    .from('quizzes')
+                    .delete()
+                    .eq('id', quizId);
+
+                if (error) throw error;
+                
+                alert('Quiz deleted successfully');
+                loadQuizzes();
+                updateOverview();
+                
+            } catch (error) {
+                console.error('Error deleting quiz:', error);
+                alert('Error deleting quiz: ' + error.message);
+            }
+        }
+
+        async function loadResultsTab() {
+            try {
+                const { data: quizzes, error } = await supabase
+                    .from('quizzes')
+                    .select('id, title')
+                    .eq('published', true)
+                    .order('title');
+
+                if (error) throw error;
+
+                const select = document.getElementById('resultQuizSelect');
+                select.innerHTML = '<option value="">-- Select a Quiz --</option>';
+                
+                quizzes.forEach(quiz => {
+                    const option = document.createElement('option');
+                    option.value = quiz.id;
+                    option.textContent = quiz.title;
+                    select.appendChild(option);
+                });
+                
+            } catch (error) {
+                console.error('Error loading quizzes for results:', error);
+                alert('Error loading quizzes: ' + error.message);
+            }
+        }
+
+        async function loadQuizResults() {
+            const quizId = document.getElementById('resultQuizSelect').value;
+            if (!quizId) {
+                document.getElementById('quizResultsContainer').classList.add('hidden');
+                return;
+            }
+            
+            try {
+                const { data: results, error } = await supabase
+                    .from('quiz_attempts')
+                    .select(`
+                        user_id,
+                        attempt_number,
+                        score,
+                        is_passed,
+                        completed_at,
+                        user_profiles (username)
+                    `)
+                    .eq('quiz_id', quizId)
+                    .order('completed_at', { ascending: false });
+
+                if (error) throw error;
+
+                // Group by user
+                const userResults = {};
+                results.forEach(attempt => {
+                    const userId = attempt.user_id;
+                    if (!userResults[userId]) {
+                        userResults[userId] = {
+                            username: attempt.user_profiles?.username || 'Unknown',
+                            attempts: [],
+                            bestScore: 0,
+                            isPassed: false
+                        };
+                    }
+                    userResults[userId].attempts.push(attempt);
+                    userResults[userId].bestScore = Math.max(userResults[userId].bestScore, attempt.score);
+                    if (attempt.is_passed) {
+                        userResults[userId].isPassed = true;
+                    }
+                });
+                
+                const tbody = document.getElementById('resultsTableBody');
+                tbody.innerHTML = '';
+                
+                Object.values(userResults).forEach(result => {
+                    const lastAttempt = result.attempts[0];
+                    const tr = document.createElement('tr');
+                    
+                    // Create cells safely
+                    const userCell = createTextElement('td', result.username);
+                    const attemptsCell = createTextElement('td', result.attempts.length.toString());
+                    const scoreCell = createTextElement('td', result.bestScore + '%');
+                    
+                    const statusCell = document.createElement('td');
+                    const statusSpan = document.createElement('span');
+                    statusSpan.textContent = result.isPassed ? 'Passed' : 'Not Passed';
+                    statusSpan.style.color = result.isPassed ? '#27ae60' : '#e74c3c';
+                    statusCell.appendChild(statusSpan);
+                    
+                    const dateCell = createTextElement('td', new Date(lastAttempt.completed_at).toLocaleString());
+                    
+                    const actionsCell = document.createElement('td');
+                    const detailsButton = document.createElement('button');
+                    detailsButton.className = 'btn btn-secondary';
+                    detailsButton.textContent = 'View Details';
+                    detailsButton.onclick = () => viewUserDetails(lastAttempt.user_id, quizId);
+                    actionsCell.appendChild(detailsButton);
+                    
+                    tr.appendChild(userCell);
+                    tr.appendChild(attemptsCell);
+                    tr.appendChild(scoreCell);
+                    tr.appendChild(statusCell);
+                    tr.appendChild(dateCell);
+                    tr.appendChild(actionsCell);
+                    
+                    tbody.appendChild(tr);
+                });
+                
+                document.getElementById('quizResultsContainer').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Error loading quiz results:', error);
+                alert('Error loading results: ' + error.message);
+            }
+        }
+
+        function viewUserDetails(userId, quizId) {
+            alert('View details feature coming soon!');
+        }
+
+        // =============================================================================
+        // QUIZ IMPORT FUNCTIONS
+        // =============================================================================
+
+        async function parseAndCreateQuizFromText() {
+            const title = document.getElementById('importQuizTitle').value.trim();
+            const description = document.getElementById('importQuizDescription').value.trim();
+            const rawText = document.getElementById('quizTextImport').value.trim();
+            
+            if (!title || !description || !rawText) {
+                showImportMessage('Please fill in all fields', 'error');
+                return;
+            }
+            
+            const currentUser = await getCurrentUser();
+            if (!currentUser) {
+                showImportMessage('You must be logged in to create quizzes', 'error');
+                return;
+            }
+            
+            try {
+                showImportMessage('Parsing quiz content...', 'info');
+                
+                const questions = parseQuizText(rawText);
+                
+                if (questions.length === 0) {
+                    showImportMessage('No valid questions found. Please check your format.', 'error');
+                    return;
+                }
+                
+                showImportMessage(`Parsed ${questions.length} questions. Creating quiz...`, 'info');
+                
+                const { data: quiz, error: quizError } = await supabase
+                    .from('quizzes')
+                    .insert([
+                        {
+                            title: title,
+                            description: description,
+                            created_by: currentUser.id,
+                            published: false
+                        }
+                    ])
+                    .select()
+                    .single();
+                    
+                if (quizError) throw quizError;
+                
+                showImportMessage(`Quiz created. Adding ${questions.length} questions...`, 'info');
+                
+                const questionsToInsert = questions.map((question, index) => ({
+                    quiz_id: quiz.id,
+                    question_text: question.text,
+                    options: question.options,
+                    correct_answer_index: question.correctAnswerIndex,
+                    order_index: index + 1
+                }));
+                
+                const { error: questionsError } = await supabase
+                    .from('questions')
+                    .insert(questionsToInsert);
+                    
+                if (questionsError) throw questionsError;
+                
+                showImportMessage(`Quiz "${title}" created successfully with ${questions.length} questions!`, 'success');
+                
+                // Clear form
+                document.getElementById('importQuizTitle').value = '';
+                document.getElementById('importQuizDescription').value = '';
+                document.getElementById('quizTextImport').value = '';
+                
+                loadQuizzes();
+                
+            } catch (error) {
+                console.error('Error creating quiz:', error);
+                showImportMessage(`Error creating quiz: ${error.message}`, 'error');
+            }
+        }
+
+        function parseQuizText(rawText) {
+            const questions = [];
+            const questionBlocks = rawText.split(/\n\s*\n/).filter(block => block.trim());
+            
+            for (let i = 0; i < questionBlocks.length; i++) {
+                const block = questionBlocks[i].trim();
+                if (!block) continue;
+                
+                try {
+                    const question = parseQuestionBlock(block, i + 1);
+                    if (question) {
+                        questions.push(question);
+                    }
+                } catch (error) {
+                    console.warn(`Error parsing question ${i + 1}:`, error.message);
+                }
+            }
+            
+            return questions;
+        }
+
+        function parseQuestionBlock(block, questionNumber) {
+            const lines = block.split('\n').filter(line => line.trim());
+            
+            if (lines.length < 3) {
+                throw new Error(`Question ${questionNumber}: Not enough content`);
+            }
+            
+            const questionLine = lines[0].trim();
+            const questionMatch = questionLine.match(/^Q\d+:\s*(.+)$/);
+            
+            if (!questionMatch) {
+                throw new Error(`Question ${questionNumber}: Invalid question format. Should start with "Q${questionNumber}:"`);
+            }
+            
+            const questionText = questionMatch[1].trim();
+            if (!questionText) {
+                throw new Error(`Question ${questionNumber}: Empty question text`);
+            }
+            
+            const options = [];
+            let correctAnswerIndex = -1;
+            
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i].trim();
+                const optionMatch = line.match(/^\*([A-Z])\)\s*(.+)$/);
+                if (!optionMatch) {
+                    continue;
+                }
+                
+                let optionText = optionMatch[2].trim();
+                const isCorrect = optionText.includes('(correct)');
+                if (isCorrect) {
+                    correctAnswerIndex = options.length;
+                    optionText = optionText.replace(/\s*\(correct\)\s*/g, '').trim();
+                }
+                
+                if (!optionText) {
+                    throw new Error(`Question ${questionNumber}: Empty option text`);
+                }
+                
+                options.push(optionText);
+            }
+            
+            if (options.length < 2) {
+                throw new Error(`Question ${questionNumber}: Must have at least 2 options`);
+            }
+            
+            if (options.length > 6) {
+                throw new Error(`Question ${questionNumber}: Maximum 6 options allowed`);
+            }
+            
+            if (correctAnswerIndex === -1) {
+                throw new Error(`Question ${questionNumber}: No correct answer marked. Add "(correct)" after the correct option.`);
+            }
+            
+            return {
+                text: questionText,
+                options: options,
+                correctAnswerIndex: correctAnswerIndex
+            };
+        }
+
+        function showImportMessage(message, type) {
+            const messageDiv = document.getElementById('importMessage');
+            messageDiv.textContent = message;
+            messageDiv.style.display = 'block';
+            
+            messageDiv.style.backgroundColor = type === 'error' ? '#fadbd8' : 
+                                               type === 'success' ? '#d5f4e6' : '#e3f2fd';
+            messageDiv.style.color = type === 'error' ? '#e74c3c' : 
+                                    type === 'success' ? '#27ae60' : '#3498db';
+            messageDiv.style.border = `1px solid ${type === 'error' ? '#e74c3c' : 
+                                              type === 'success' ? '#27ae60' : '#3498db'}`;
+            
+            if (type !== 'error') {
+                setTimeout(() => {
+                    messageDiv.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // =============================================================================
+        // USER DASHBOARD FUNCTIONS
+        // =============================================================================
+
+        function showUserDashboard() {
+            document.getElementById('userDashboard').classList.remove('hidden');
+            loadUserQuizzes();
+            loadUserResults();
+        }
+
+        async function loadUserQuizzes() {
+            try {
+                const currentUser = await getCurrentUser();
+                if (!currentUser) return;
+
+                const [quizzesResult, attemptsResult] = await Promise.all([
+                    supabase
+                        .from('quizzes')
+                        .select(`
+                            id,
+                            title,
+                            description,
+                            passing_score,
+                            questions (count)
+                        `)
+                        .eq('published', true)
+                        .order('created_at', { ascending: false }),
+                    
+                    supabase
+                        .from('quiz_attempts')
+                        .select('quiz_id, score, is_passed')
+                        .eq('user_id', currentUser.id)
+                ]);
+
+                if (quizzesResult.error) throw quizzesResult.error;
+                if (attemptsResult.error) throw attemptsResult.error;
+
+                const quizzes = quizzesResult.data;
+                const attempts = attemptsResult.data;
+
+                const container = document.getElementById('userQuizList');
+                container.innerHTML = '';
+                
+                quizzes.forEach(quiz => {
+                    const userAttempts = attempts.filter(a => a.quiz_id === quiz.id);
+                    const bestScore = userAttempts.length > 0 ? Math.max(...userAttempts.map(a => a.score)) : 0;
+                    const isPassed = userAttempts.some(a => a.is_passed);
+                    const questionCount = quiz.questions[0]?.count || 0;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    
+                    const title = createTextElement('h3', quiz.title);
+                    const description = createTextElement('p', quiz.description);
+                    
+                    const statsDiv = document.createElement('div');
+                    statsDiv.className = 'stats';
+                    
+                    const questionsSpan = createTextElement('span', `Questions: ${questionCount}`);
+                    const requiredSpan = createTextElement('span', `Required: ${quiz.passing_score || 100}%`);
+                    const statusText = isPassed ? '✓ Passed' : bestScore > 0 ? `Best: ${bestScore}%` : 'Not Attempted';
+                    const statusSpan = createTextElement('span', statusText);
+                    
+                    statsDiv.appendChild(questionsSpan);
+                    statsDiv.appendChild(requiredSpan);
+                    statsDiv.appendChild(statusSpan);
+                    
+                    const button = document.createElement('button');
+                    button.className = 'btn btn-primary btn-full';
+                    button.textContent = isPassed ? 'Retake Quiz' : 'Start Quiz';
+                    button.onclick = () => startQuiz(quiz.id);
+                    
+                    card.appendChild(title);
+                    card.appendChild(description);
+                    card.appendChild(statsDiv);
+                    card.appendChild(button);
+                    
+                    container.appendChild(card);
+                });
+                
+            } catch (error) {
+                console.error('Error loading user quizzes:', error);
+                alert('Error loading quizzes: ' + error.message);
+            }
+        }
+
+        async function loadUserResults() {
+            try {
+                const currentUser = await getCurrentUser();
+                if (!currentUser) return;
+
+                const { data: results, error } = await supabase
+                    .from('quiz_attempts')
+                    .select(`
+                        quiz_id,
+                        attempt_number,
+                        score,
+                        is_passed,
+                        completed_at,
+                        quizzes (title)
+                    `)
+                    .eq('user_id', currentUser.id)
+                    .order('completed_at', { ascending: false });
+
+                if (error) throw error;
+
+                const quizResults = {};
+                results.forEach(attempt => {
+                    const quizId = attempt.quiz_id;
+                    if (!quizResults[quizId]) {
+                        quizResults[quizId] = {
+                            title: attempt.quizzes.title,
+                            attempts: [],
+                            bestScore: 0,
+                            isPassed: false
+                        };
+                    }
+                    quizResults[quizId].attempts.push(attempt);
+                    quizResults[quizId].bestScore = Math.max(quizResults[quizId].bestScore, attempt.score);
+                    if (attempt.is_passed) {
+                        quizResults[quizId].isPassed = true;
+                    }
+                });
+                
+                const tbody = document.getElementById('userResultsTableBody');
+                tbody.innerHTML = '';
+                
+                Object.values(quizResults).forEach(result => {
+                    const lastAttempt = result.attempts[0];
+                    const tr = document.createElement('tr');
+                    
+                    const titleCell = createTextElement('td', result.title);
+                    const attemptsCell = createTextElement('td', result.attempts.length.toString());
+                    const scoreCell = createTextElement('td', result.bestScore + '%');
+                    
+                    const statusCell = document.createElement('td');
+                    const statusSpan = document.createElement('span');
+                    statusSpan.textContent = result.isPassed ? 'Passed' : 'Not Passed';
+                    statusSpan.style.color = result.isPassed ? '#27ae60' : '#e74c3c';
+                    statusCell.appendChild(statusSpan);
+                    
+                    const dateCell = createTextElement('td', new Date(lastAttempt.completed_at).toLocaleString());
+                    
+                    tr.appendChild(titleCell);
+                    tr.appendChild(attemptsCell);
+                    tr.appendChild(scoreCell);
+                    tr.appendChild(statusCell);
+                    tr.appendChild(dateCell);
+                    
+                    tbody.appendChild(tr);
+                });
+                
+            } catch (error) {
+                console.error('Error loading user results:', error);
+                alert('Error loading results: ' + error.message);
+            }
+        }
+
+        // =============================================================================
+        // QUIZ TAKING FUNCTIONS
+        // =============================================================================
+
+        async function startQuiz(quizId) {
+            try {
+                const currentUser = await getCurrentUser();
+                if (!currentUser) {
+                    alert('You must be logged in to take quizzes');
+                    return;
+                }
+
+                const { data: quiz, error: quizError } = await supabase
+                    .from('quizzes')
+                    .select(`
+                        id,
+                        title,
+                        description,
+                        published,
+                        passing_score,
+                        time_limit,
+                        questions (
+                            id,
+                            question_text,
+                            options,
+                            correct_answer_index,
+                            order_index
+                        )
+                    `)
+                    .eq('id', quizId)
+                    .eq('published', true)
+                    .single();
+
+                if (quizError) throw quizError;
+                
+                if (!quiz || !quiz.questions || quiz.questions.length === 0) {
+                    alert('Quiz not found or has no questions');
+                    return;
+                }
+
+                const { data: attempts, error: attemptsError } = await supabase
+                    .from('quiz_attempts')
+                    .select('attempt_number')
+                    .eq('user_id', currentUser.id)
+                    .eq('quiz_id', quizId)
+                    .order('attempt_number', { ascending: false })
+                    .limit(1);
+
+                if (attemptsError) throw attemptsError;
+
+                // Sort questions by order_index
+                quiz.questions.sort((a, b) => a.order_index - b.order_index);
+                
+                // Randomize question order
+                const questionOrder = [...Array(quiz.questions.length).keys()];
+                for (let i = questionOrder.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [questionOrder[i], questionOrder[j]] = [questionOrder[j], questionOrder[i]];
+                }
+                
+                const attemptData = {
+                    user_id: currentUser.id,
+                    quiz_id: quizId,
+                    attempt_number: (attempts[0]?.attempt_number || 0) + 1,
+                    started_at: new Date().toISOString(),
+                    answers: [],
+                    score: 0,
+                    total_questions: quiz.questions.length,
+                    correct_answers: 0,
+                    is_passed: false
+                };
+                
+                // Show quiz interface
+                document.getElementById('userDashboard').classList.add('hidden');
+                document.getElementById('quizInterface').classList.remove('hidden');
+                
+                document.getElementById('quizTitle').textContent = quiz.title;
+                document.getElementById('quizDescription').textContent = quiz.description;
+                
+                showQuestion(quiz, attemptData, questionOrder, 0);
+                
+            } catch (error) {
+                console.error('Error starting quiz:', error);
+                alert('Error loading quiz: ' + error.message);
+            }
+        }
+
+        function showQuestion(quiz, attemptData, questionOrder, currentIndex) {
+            const question = quiz.questions[questionOrder[currentIndex]];
+            
+            document.getElementById('questionText').textContent = 
+                `Question ${currentIndex + 1} of ${quiz.questions.length}: ${question.question_text}`;
+            
+            const progress = ((currentIndex) / quiz.questions.length) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+            
+            const timeLimit = quiz.time_limit || 30;
+            let timeLeft = timeLimit;
+            document.getElementById('timer').textContent = timeLeft.toString();
+            document.getElementById('timer').classList.remove('warning');
+            
+            // Clear previous feedback
+            const feedbackDiv = document.getElementById('feedbackMessage');
+            feedbackDiv.innerHTML = '';
+            feedbackDiv.className = '';
+            document.getElementById('nextButton').classList.add('hidden');
+            
+            // Show answer options
+            const optionsContainer = document.getElementById('answerOptions');
+            optionsContainer.innerHTML = '';
+            
+            question.options.forEach((option, index) => {
+                const div = document.createElement('div');
+                div.className = 'answer-option';
+                div.textContent = option;
+                div.onclick = () => {
+                    clearInterval(quizTimer);
+                    selectAnswer(quiz, attemptData, questionOrder, currentIndex, index, timeLimit - timeLeft);
+                };
+                optionsContainer.appendChild(div);
+            });
+            
+            // Start timer
+            clearInterval(quizTimer);
+            quizTimer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft.toString();
+                
+                if (timeLeft <= 10) {
+                    document.getElementById('timer').classList.add('warning');
+                }
+                
+                if (timeLeft === 0) {
+                    clearInterval(quizTimer);
+                    selectAnswer(quiz, attemptData, questionOrder, currentIndex, -1, timeLimit);
+                }
+            }, 1000);
+        }
+
+        function selectAnswer(quiz, attemptData, questionOrder, currentIndex, selectedIndex, timeTaken) {
+            const question = quiz.questions[questionOrder[currentIndex]];
+            const isCorrect = selectedIndex === question.correct_answer_index;
+            
+            // Disable all options
+            document.querySelectorAll('.answer-option').forEach(option => {
+                option.onclick = null;
+                option.style.cursor = 'default';
+            });
+            
+            if (selectedIndex >= 0) {
+                document.querySelectorAll('.answer-option')[selectedIndex].classList.add('selected');
+            }
+            
+            // Save answer
+            attemptData.answers.push({
+                question_id: question.id,
+                selected_option_index: selectedIndex,
+                is_correct: isCorrect,
+                answered_at: new Date().toISOString(),
+                time_taken: timeTaken
+            });
+            
+            if (isCorrect) {
+                attemptData.correct_answers++;
+            }
+            
+            // Show feedback
+            const feedbackDiv = document.getElementById('feedbackMessage');
+            const options = document.querySelectorAll('.answer-option');
+            
+            if (selectedIndex === -1) {
+                feedbackDiv.className = 'feedback incorrect';
+                feedbackDiv.textContent = `Time's up! The correct answer was: ${question.options[question.correct_answer_index]}`;
+                options[question.correct_answer_index].classList.add('correct');
+            } else {
+                options[selectedIndex].classList.add(isCorrect ? 'correct' : 'incorrect');
+                
+                if (isCorrect) {
+                    feedbackDiv.className = 'feedback correct';
+                    feedbackDiv.textContent = 'Correct!';
+                    showSparkles(feedbackDiv);
+                } else {
+                    feedbackDiv.className = 'feedback incorrect';
+                    feedbackDiv.textContent = `Incorrect. The correct answer was: ${question.options[question.correct_answer_index]}`;
+                    options[question.correct_answer_index].classList.add('correct');
+                }
+            }
+            
+            // Show next button
+            const nextButton = document.getElementById('nextButton');
+            nextButton.classList.remove('hidden');
+            nextButton.onclick = () => nextQuestion(quiz, attemptData, questionOrder, currentIndex);
+        }
+
+        function nextQuestion(quiz, attemptData, questionOrder, currentIndex) {
+            const nextIndex = currentIndex + 1;
+            
+            if (nextIndex < quiz.questions.length) {
+                showQuestion(quiz, attemptData, questionOrder, nextIndex);
+            } else {
+                completeQuiz(quiz, attemptData);
+            }
+        }
+
+        async function completeQuiz(quiz, attemptData) {
+            clearInterval(quizTimer);
+            
+            try {
+                const score = Math.round((attemptData.correct_answers / attemptData.total_questions) * 100);
+                const passingScore = quiz.passing_score || 100;
+                
+                attemptData.score = score;
+                attemptData.is_passed = score >= passingScore;
+                attemptData.completed_at = new Date().toISOString();
+                
+                const startTime = new Date(attemptData.started_at);
+                const endTime = new Date(attemptData.completed_at);
+                attemptData.time_taken = Math.round((endTime - startTime) / 1000);
+                
+                const { error: attemptError } = await supabase
+                    .from('quiz_attempts')
+                    .insert([{
+                        user_id: attemptData.user_id,
+                        quiz_id: attemptData.quiz_id,
+                        attempt_number: attemptData.attempt_number,
+                        score: attemptData.score,
+                        total_questions: attemptData.total_questions,
+                        correct_answers: attemptData.correct_answers,
+                        is_passed: attemptData.is_passed,
+                        started_at: attemptData.started_at,
+                        completed_at: attemptData.completed_at,
+                        time_taken: attemptData.time_taken,
+                        answers: attemptData.answers
+                    }]);
+                    
+                if (attemptError) throw attemptError;
+                
+                showResults(quiz, score, passingScore);
+                
+            } catch (error) {
+                console.error('Error saving quiz attempt:', error);
+                alert('Error saving quiz results: ' + error.message);
+                const score = Math.round((attemptData.correct_answers / attemptData.total_questions) * 100);
+                showResults(quiz, score, quiz.passing_score || 100);
+            }
+        }
+
+        function showResults(quiz, score, passingScore) {
+            document.getElementById('quizInterface').classList.add('hidden');
+            document.getElementById('resultsScreen').classList.remove('hidden');
+            
+            const scoreDisplay = document.getElementById('scoreDisplay');
+            scoreDisplay.textContent = score + '%';
+            scoreDisplay.className = score >= passingScore ? 'score-display perfect' : 'score-display';
+            
+            if (score >= passingScore) {
+                document.getElementById('resultsTitle').textContent = 'Congratulations!';
+                document.getElementById('resultsMessage').textContent = `You scored ${score}% and passed the quiz! (${passingScore}% required)`;
+                document.getElementById('retryButton').classList.add('hidden');
+                showFireworks();
+            } else {
+                document.getElementById('resultsTitle').textContent = 'Quiz Complete';
+                document.getElementById('resultsMessage').textContent = `You scored ${score}%. You need ${passingScore}% to pass. Ready to try again?`;
+                document.getElementById('retryButton').classList.remove('hidden');
+            }
+            
+            // Set up retry button
+            document.getElementById('retryButton').onclick = () => {
+                document.getElementById('resultsScreen').classList.add('hidden');
+                startQuiz(quiz.id);
+            };
+        }
+
+        // Implement retryQuiz for backward compatibility
+        function retryQuiz() {
+            // This function is called by the retry button which now has its onclick set dynamically
+            // No implementation needed here as it's handled in showResults
+        }
+
+        // =============================================================================
+        // UTILITY FUNCTIONS FOR QUIZ
+        // =============================================================================
+
+        function showSparkles(element) {
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => {
+                    const sparkle = document.createElement('div');
+                    sparkle.className = 'sparkle';
+                    sparkle.style.setProperty('--x', `${(Math.random() - 0.5) * 100}px`);
+                    sparkle.style.setProperty('--y', `${(Math.random() - 0.5) * 100}px`);
+                    sparkle.style.left = '50%';
+                    sparkle.style.top = '50%';
+                    element.appendChild(sparkle);
+                    
+                    setTimeout(() => sparkle.remove(), 1000);
+                }, i * 50);
+            }
+        }
+
+        function returnToDashboard() {
+            document.getElementById('resultsScreen').classList.add('hidden');
+            document.getElementById('quizInterface').classList.add('hidden');
+            
+            // Check user role and show appropriate dashboard
+            getCurrentUser().then(async user => {
+                if (user) {
+                    const profile = await getUserProfile(user.id);
+                    if (profile.role === 'admin') {
+                        document.getElementById('adminDashboard').classList.remove('hidden');
+                    } else {
+                        document.getElementById('userDashboard').classList.remove('hidden');
+                        loadUserQuizzes();
+                        loadUserResults();
+                    }
+                }
+            });
+        }
+
+        function showFireworks() {
+            const canvas = document.getElementById('fireworks');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            canvas.style.display = 'block';
+            
+            const particles = [];
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+            
+            class Particle {
+                constructor(x, y, color) {
+                    this.x = x;
+                    this.y = y;
+                    this.color = color;
+                    this.velocity = {
+                        x: (Math.random() - 0.5) * 10,
+                        y: (Math.random() - 0.5) * 10
+                    };
+                    this.alpha = 1;
+                    this.decay = 0.015;
+                }
+                
+                update() {
+                    this.velocity.y += 0.1;
+                    this.x += this.velocity.x;
+                    this.y += this.velocity.y;
+                    this.alpha -= this.decay;
+                }
+                
+                draw() {
+                    ctx.save();
+                    ctx.globalAlpha = this.alpha;
+                    ctx.fillStyle = this.color;
+                    ctx.fillRect(this.x, this.y, 3, 3);
+                    ctx.restore();
+                }
+            }
+            
+            function createFirework() {
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height * 0.5;
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                
+                for (let i = 0; i < 50; i++) {
+                    particles.push(new Particle(x, y, color));
+                }
+            }
+            
+            function animate() {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                particles.forEach((particle, index) => {
+                    if (particle.alpha <= 0) {
+                        particles.splice(index, 1);
+                    } else {
+                        particle.update();
+                        particle.draw();
+                    }
+                });
+                
+                if (particles.length < 100 && Math.random() < 0.1) {
+                    createFirework();
+                }
+                
+                if (particles.length > 0 || Math.random() < 0.02) {
+                    requestAnimationFrame(animate);
+                } else {
+                    setTimeout(() => {
+                        canvas.style.display = 'none';
+                        ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    }, 1000);
+                }
+            }
+            
+            for (let i = 0; i < 5; i++) {
+                setTimeout(createFirework, i * 200);
+            }
+            
+            animate();
+        }
+
+        // =============================================================================
+        // MODAL FUNCTIONS (if still needed)
+        // =============================================================================
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        // =============================================================================
+        // INITIALIZATION
+        // =============================================================================
+
+        // Initialize app on load
+        window.onload = function() {
+            checkAuthStatus();
+        };
+
+        // Close modals when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        };
+    </script>
+</body>
+</html>
