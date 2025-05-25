@@ -511,6 +511,52 @@
             display: none !important;
         }
 
+        /* Assignment-specific styles */
+.assignment-card {
+    border-left: 4px solid #3498db;
+}
+
+.assignment-card.mandatory {
+    border-left-color: #e74c3c;
+}
+
+.assignment-card.overdue {
+    background-color: #fadbd8;
+    border-left-color: #c0392b;
+}
+
+.assignment-info {
+    background: #f8f9fa;
+    padding: 0.5rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    white-space: pre-line;
+}
+
+/* Status indicators */
+.status-indicator {
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.status-indicator.completed {
+    background-color: #d5f4e6;
+    color: #27ae60;
+}
+
+.status-indicator.pending {
+    background-color: #fef5e7;
+    color: #f39c12;
+}
+
+.status-indicator.overdue {
+    background-color: #fadbd8;
+    color: #e74c3c;
+}
+        
         /* Responsive */
         @media (max-width: 768px) {
             .dashboard {
@@ -576,12 +622,13 @@
     <!-- Admin Dashboard -->
     <div id="adminDashboard" class="container hidden">
         <div class="tabs">
-            <button class="tab active" onclick="switchTab(event, 'overview')">Overview</button>
-            <button class="tab" onclick="switchTab(event, 'users')">Users</button>
-            <button class="tab" onclick="switchTab(event, 'quizzes')">Quizzes</button>
-            <button class="tab" onclick="switchTab(event, 'import')">Import Quiz</button>
-            <button class="tab" onclick="switchTab(event, 'results')">Results</button>
-        </div>
+    <button class="tab active" onclick="switchTab(event, 'overview')">Overview</button>
+    <button class="tab" onclick="switchTab(event, 'users')">Users</button>
+    <button class="tab" onclick="switchTab(event, 'quizzes')">Quizzes</button>
+    <button class="tab" onclick="switchTab(event, 'assignments')">Assignments</button>
+    <button class="tab" onclick="switchTab(event, 'import')">Import Quiz</button>
+    <button class="tab" onclick="switchTab(event, 'results')">Results</button>
+</div>
 
         <!-- Overview Tab -->
         <div id="overviewTab" class="tab-content">
@@ -743,7 +790,69 @@ Q3: What is 2 + 2?
             </div>
         </div>
     </div>
-
+    
+        <!-- Assignments Tab -->
+        <div id="assignmentsTab" class="tab-content hidden">
+            <h2>Quiz Assignments</h2>
+            
+            <!-- Assignment Creation Form -->
+            <div class="card" style="margin-bottom: 2rem;">
+                <h3>Create New Assignment</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="assignQuizSelect">Select Quiz</label>
+                        <select id="assignQuizSelect" required>
+                            <option value="">-- Select Quiz --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="assignUsersSelect">Select Users (hold Ctrl/Cmd for multiple)</label>
+                        <select id="assignUsersSelect" multiple required style="height: 100px;">
+                        </select>
+                    </div>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="assignDueDate">Due Date (optional)</label>
+                        <input type="datetime-local" id="assignDueDate">
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="assignMandatory" checked>
+                            Mandatory Assignment
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="assignNotes">Notes (optional)</label>
+                    <textarea id="assignNotes" rows="2" placeholder="Additional instructions or context..."></textarea>
+                </div>
+                
+                <button class="btn btn-primary" onclick="createAssignment()">Create Assignment</button>
+            </div>
+            
+            <!-- Existing Assignments Table -->
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Quiz</th>
+                            <th>Assigned To</th>
+                            <th>Due Date</th>
+                            <th>Mandatory</th>
+                            <th>Assigned</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="assignmentsTableBody">
+                        <!-- Assignment rows will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    
     <!-- User Dashboard -->
     <div id="userDashboard" class="container hidden">
         <h2>Available Quizzes</h2>
@@ -1116,6 +1225,9 @@ Q3: What is 2 + 2?
                 case 'quizzes':
                     loadQuizzes();
                     break;
+                case 'assignments':
+                    loadAssignmentsTab();
+                    break;
                 case 'import':
                     document.getElementById('importMessage').style.display = 'none';
                     break;
@@ -1454,6 +1566,313 @@ Q3: What is 2 + 2?
             alert('View details feature coming soon!');
         }
 
+        // =============================================================================
+        // ASSIGNMENT MANAGEMENT FUNCTIONS
+        // =============================================================================
+
+        async function loadAssignmentsTab() {
+            try {
+                // Load all users and quizzes for assignment dropdowns
+                const [usersResult, quizzesResult, assignmentsResult] = await Promise.all([
+                    supabase.from('user_profiles').select('id, username, role, department_id').eq('role', 'user'),
+                    supabase.from('quizzes').select('id, title').eq('published', true),
+                    supabase.from('quiz_assignments').select(`
+                        id, due_date, assigned_at, is_mandatory, notes,
+                        quizzes (title),
+                        assigned_to_profile:user_profiles!quiz_assignments_assigned_to_fkey (username),
+                        assigned_by_profile:user_profiles!quiz_assignments_assigned_by_fkey (username)
+                    `)
+                ]);
+
+                if (usersResult.error) throw usersResult.error;
+                if (quizzesResult.error) throw quizzesResult.error;
+                if (assignmentsResult.error) throw assignmentsResult.error;
+
+                // Populate assignment form dropdowns
+                populateAssignmentForm(usersResult.data, quizzesResult.data);
+                
+                // Display existing assignments
+                displayAssignments(assignmentsResult.data);
+                
+            } catch (error) {
+                console.error('Error loading assignments:', error);
+                alert('Error loading assignments: ' + error.message);
+            }
+        }
+
+        function populateAssignmentForm(users, quizzes) {
+            // User dropdown
+            const userSelect = document.getElementById('assignUsersSelect');
+            if (userSelect) {
+                userSelect.innerHTML = '<option value="">-- Select Users --</option>';
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = user.username;
+                    userSelect.appendChild(option);
+                });
+            }
+
+            // Quiz dropdown
+            const quizSelect = document.getElementById('assignQuizSelect');
+            if (quizSelect) {
+                quizSelect.innerHTML = '<option value="">-- Select Quiz --</option>';
+                quizzes.forEach(quiz => {
+                    const option = document.createElement('option');
+                    option.value = quiz.id;
+                    option.textContent = quiz.title;
+                    quizSelect.appendChild(option);
+                });
+            }
+        }
+
+        function displayAssignments(assignments) {
+            const tbody = document.getElementById('assignmentsTableBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            assignments.forEach(assignment => {
+                const tr = document.createElement('tr');
+                
+                const quizCell = createTextElement('td', assignment.quizzes?.title || 'Unknown');
+                const userCell = createTextElement('td', assignment.assigned_to_profile?.username || 'Unknown');
+                const dueDateCell = createTextElement('td', assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date');
+                const mandatoryCell = createTextElement('td', assignment.is_mandatory ? 'Yes' : 'No');
+                const assignedCell = createTextElement('td', new Date(assignment.assigned_at).toLocaleDateString());
+                
+                const actionsCell = document.createElement('td');
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'btn btn-danger';
+                deleteButton.textContent = 'Remove';
+                deleteButton.onclick = () => removeAssignment(assignment.id);
+                actionsCell.appendChild(deleteButton);
+                
+                tr.appendChild(quizCell);
+                tr.appendChild(userCell);
+                tr.appendChild(dueDateCell);
+                tr.appendChild(mandatoryCell);
+                tr.appendChild(assignedCell);
+                tr.appendChild(actionsCell);
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function createAssignment() {
+            const quizId = document.getElementById('assignQuizSelect')?.value;
+            const userIds = Array.from(document.getElementById('assignUsersSelect')?.selectedOptions || []).map(opt => opt.value);
+            const dueDate = document.getElementById('assignDueDate')?.value;
+            const isMandatory = document.getElementById('assignMandatory')?.checked;
+            const notes = document.getElementById('assignNotes')?.value;
+
+            if (!quizId || userIds.length === 0) {
+                alert('Please select a quiz and at least one user');
+                return;
+            }
+
+            const currentUser = await getCurrentUser();
+            if (!currentUser) {
+                alert('You must be logged in to create assignments');
+                return;
+            }
+
+            try {
+                const assignments = userIds.map(userId => ({
+                    quiz_id: quizId,
+                    assigned_to: userId,
+                    assigned_by: currentUser.id,
+                    due_date: dueDate || null,
+                    is_mandatory: isMandatory,
+                    notes: notes || null
+                }));
+
+                const { error } = await supabase
+                    .from('quiz_assignments')
+                    .insert(assignments);
+
+                if (error) throw error;
+
+                alert(`Assignment created for ${userIds.length} user(s)`);
+                
+                // Clear form
+                document.getElementById('assignQuizSelect').value = '';
+                document.getElementById('assignUsersSelect').value = '';
+                document.getElementById('assignDueDate').value = '';
+                document.getElementById('assignMandatory').checked = false;
+                document.getElementById('assignNotes').value = '';
+                
+                // Reload assignments
+                loadAssignmentsTab();
+                
+            } catch (error) {
+                console.error('Error creating assignment:', error);
+                alert('Error creating assignment: ' + error.message);
+            }
+        }
+
+        async function removeAssignment(assignmentId) {
+            if (!confirm('Are you sure you want to remove this assignment?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('quiz_assignments')
+                    .delete()
+                    .eq('id', assignmentId);
+
+                if (error) throw error;
+
+                alert('Assignment removed successfully');
+                loadAssignmentsTab();
+                
+            } catch (error) {
+                console.error('Error removing assignment:', error);
+                alert('Error removing assignment: ' + error.message);
+            }
+        }
+
+        // =============================================================================
+        // ENHANCED USER DASHBOARD - Show Assigned Quizzes
+        // =============================================================================
+
+        async function loadUserAssignments() {
+            try {
+                const currentUser = await getCurrentUser();
+                if (!currentUser) return;
+
+                const { data: assignments, error } = await supabase
+                    .from('quiz_assignments')
+                    .select(`
+                        id,
+                        due_date,
+                        is_mandatory,
+                        notes,
+                        assigned_at,
+                        quizzes (
+                            id,
+                            title,
+                            description,
+                            passing_score,
+                            questions (count)
+                        )
+                    `)
+                    .eq('assigned_to', currentUser.id)
+                    .is('completed_at', null); // Only incomplete assignments
+
+                if (error) throw error;
+
+                // Get user's attempts to check completion status
+                const { data: attempts, error: attemptsError } = await supabase
+                    .from('quiz_attempts')
+                    .select('quiz_id, score, is_passed')
+                    .eq('user_id', currentUser.id);
+
+                if (attemptsError) throw attemptsError;
+
+                displayAssignedQuizzes(assignments, attempts);
+                
+            } catch (error) {
+                console.error('Error loading user assignments:', error);
+            }
+        }
+
+        function displayAssignedQuizzes(assignments, attempts) {
+            // Find or create assigned quizzes container
+            let container = document.getElementById('assignedQuizzesContainer');
+            if (!container) {
+                // Create container if it doesn't exist
+                const userDashboard = document.getElementById('userDashboard');
+                const assignedSection = document.createElement('div');
+                assignedSection.innerHTML = `
+                    <h2 style="margin-top: 3rem;">Assigned Quizzes</h2>
+                    <div id="assignedQuizzesContainer" class="dashboard">
+                        <!-- Assigned quiz cards will be populated here -->
+                    </div>
+                `;
+                
+                // Insert before "My Results" section
+                const resultsSection = userDashboard.querySelector('h2:last-of-type');
+                if (resultsSection) {
+                    userDashboard.insertBefore(assignedSection, resultsSection);
+                } else {
+                    userDashboard.appendChild(assignedSection);
+                }
+                container = document.getElementById('assignedQuizzesContainer');
+            }
+
+            container.innerHTML = '';
+
+            if (assignments.length === 0) {
+                container.innerHTML = '<p>No assigned quizzes at this time.</p>';
+                return;
+            }
+
+            assignments.forEach(assignment => {
+                const quiz = assignment.quizzes;
+                const userAttempts = attempts.filter(a => a.quiz_id === quiz.id);
+                const bestScore = userAttempts.length > 0 ? Math.max(...userAttempts.map(a => a.score)) : 0;
+                const isPassed = userAttempts.some(a => a.is_passed);
+                const questionCount = quiz.questions[0]?.count || 0;
+                
+                const card = document.createElement('div');
+                card.className = 'card assignment-card';
+                
+                // Add assignment-specific styling
+                if (assignment.is_mandatory) {
+                    card.classList.add('mandatory');
+                }
+                
+                const title = createTextElement('h3', quiz.title);
+                const description = createTextElement('p', quiz.description);
+                
+                const assignmentInfo = document.createElement('div');
+                assignmentInfo.className = 'assignment-info';
+                
+                let infoText = assignment.is_mandatory ? '🔴 Mandatory Assignment' : '📋 Optional Assignment';
+                if (assignment.due_date) {
+                    const dueDate = new Date(assignment.due_date);
+                    const isOverdue = dueDate < new Date() && !isPassed;
+                    infoText += `\n📅 Due: ${dueDate.toLocaleDateString()}`;
+                    if (isOverdue) {
+                        infoText += ' (OVERDUE)';
+                        card.classList.add('overdue');
+                    }
+                }
+                if (assignment.notes) {
+                    infoText += `\n📝 ${assignment.notes}`;
+                }
+                
+                assignmentInfo.textContent = infoText;
+                
+                const statsDiv = document.createElement('div');
+                statsDiv.className = 'stats';
+                
+                const questionsSpan = createTextElement('span', `Questions: ${questionCount}`);
+                const requiredSpan = createTextElement('span', `Required: ${quiz.passing_score || 100}%`);
+                const statusText = isPassed ? '✅ Completed' : bestScore > 0 ? `📊 Best: ${bestScore}%` : '❌ Not Started';
+                const statusSpan = createTextElement('span', statusText);
+                
+                statsDiv.appendChild(questionsSpan);
+                statsDiv.appendChild(requiredSpan);
+                statsDiv.appendChild(statusSpan);
+                
+                const button = document.createElement('button');
+                button.className = 'btn btn-primary btn-full';
+                button.textContent = isPassed ? 'Retake Quiz' : 'Start Quiz';
+                button.onclick = () => startQuiz(quiz.id);
+                
+                card.appendChild(title);
+                card.appendChild(description);
+                card.appendChild(assignmentInfo);
+                card.appendChild(statsDiv);
+                card.appendChild(button);
+                
+                container.appendChild(card);
+            });
+        }
+        
         // =============================================================================
         // QUIZ IMPORT FUNCTIONS
         // =============================================================================
