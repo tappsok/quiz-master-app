@@ -1570,146 +1570,107 @@ Q3: What is 2 + 2?
         // ASSIGNMENT MANAGEMENT FUNCTIONS
         // =============================================================================
 
-        async function loadAssignmentsTab() {
-            try {
-                // Load all users and quizzes for assignment dropdowns
-                const [usersResult, quizzesResult, assignmentsResult] = await Promise.all([
-                    supabase.from('user_profiles').select('id, username, role, department_id').eq('role', 'user'),
-                    supabase.from('quizzes').select('id, title').eq('published', true),
-                    supabase.from('quiz_assignments').select(`
-                        id, due_date, assigned_at, is_mandatory, notes,
-                        quizzes (title),
-                        assigned_to_profile:user_profiles!quiz_assignments_assigned_to_fkey (username),
-                        assigned_by_profile:user_profiles!quiz_assignments_assigned_by_fkey (username)
-                    `)
-                ]);
+async function loadAssignmentsTab() {
+    try {
+        // Load all users and quizzes for assignment dropdowns
+        const [usersResult, quizzesResult] = await Promise.all([
+            supabase.from('user_profiles').select('id, username, role').eq('role', 'user'),
+            supabase.from('quizzes').select('id, title').eq('published', true)
+        ]);
 
-                if (usersResult.error) throw usersResult.error;
-                if (quizzesResult.error) throw quizzesResult.error;
-                if (assignmentsResult.error) throw assignmentsResult.error;
+        if (usersResult.error) throw usersResult.error;
+        if (quizzesResult.error) throw quizzesResult.error;
 
-                // Populate assignment form dropdowns
-                populateAssignmentForm(usersResult.data, quizzesResult.data);
-                
-                // Display existing assignments
-                displayAssignments(assignmentsResult.data);
-                
-            } catch (error) {
-                console.error('Error loading assignments:', error);
-                alert('Error loading assignments: ' + error.message);
-            }
-        }
+        // Populate assignment form dropdowns
+        populateAssignmentForm(usersResult.data, quizzesResult.data);
+        
+        // Load assignments with joins (should work now)
+        await loadAssignmentsWithJoins();
+        
+    } catch (error) {
+        console.error('Error loading assignments:', error);
+        alert('Error loading assignments: ' + error.message);
+    }
+}
 
-        function populateAssignmentForm(users, quizzes) {
-            // User dropdown
-            const userSelect = document.getElementById('assignUsersSelect');
-            if (userSelect) {
-                userSelect.innerHTML = '<option value="">-- Select Users --</option>';
-                users.forEach(user => {
-                    const option = document.createElement('option');
-                    option.value = user.id;
-                    option.textContent = user.username;
-                    userSelect.appendChild(option);
-                });
-            }
+async function loadAssignmentsWithJoins() {
+    try {
+        const { data: assignments, error } = await supabase
+            .from('quiz_assignments')
+            .select(`
+                id,
+                due_date,
+                assigned_at,
+                is_mandatory,
+                notes,
+                quizzes (title),
+                assigned_to_profile:user_profiles!quiz_assignments_assigned_to_fkey (username),
+                assigned_by_profile:user_profiles!quiz_assignments_assigned_by_fkey (username)
+            `);
 
-            // Quiz dropdown
-            const quizSelect = document.getElementById('assignQuizSelect');
-            if (quizSelect) {
-                quizSelect.innerHTML = '<option value="">-- Select Quiz --</option>';
-                quizzes.forEach(quiz => {
-                    const option = document.createElement('option');
-                    option.value = quiz.id;
-                    option.textContent = quiz.title;
-                    quizSelect.appendChild(option);
-                });
-            }
-        }
+        if (error) throw error;
 
-        function displayAssignments(assignments) {
-            const tbody = document.getElementById('assignmentsTableBody');
-            if (!tbody) return;
-            
-            tbody.innerHTML = '';
-            
-            assignments.forEach(assignment => {
-                const tr = document.createElement('tr');
-                
-                const quizCell = createTextElement('td', assignment.quizzes?.title || 'Unknown');
-                const userCell = createTextElement('td', assignment.assigned_to_profile?.username || 'Unknown');
-                const dueDateCell = createTextElement('td', assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date');
-                const mandatoryCell = createTextElement('td', assignment.is_mandatory ? 'Yes' : 'No');
-                const assignedCell = createTextElement('td', new Date(assignment.assigned_at).toLocaleDateString());
-                
-                const actionsCell = document.createElement('td');
-                const deleteButton = document.createElement('button');
-                deleteButton.className = 'btn btn-danger';
-                deleteButton.textContent = 'Remove';
-                deleteButton.onclick = () => removeAssignment(assignment.id);
-                actionsCell.appendChild(deleteButton);
-                
-                tr.appendChild(quizCell);
-                tr.appendChild(userCell);
-                tr.appendChild(dueDateCell);
-                tr.appendChild(mandatoryCell);
-                tr.appendChild(assignedCell);
-                tr.appendChild(actionsCell);
-                
-                tbody.appendChild(tr);
-            });
-        }
+        // Transform the data for display
+        const formattedAssignments = assignments.map(assignment => ({
+            ...assignment,
+            quiz_title: assignment.quizzes?.title || 'Unknown Quiz',
+            assigned_to_username: assignment.assigned_to_profile?.username || 'Unknown',
+            assigned_by_username: assignment.assigned_by_profile?.username || 'Unknown'
+        }));
 
-        async function createAssignment() {
-            const quizId = document.getElementById('assignQuizSelect')?.value;
-            const userIds = Array.from(document.getElementById('assignUsersSelect')?.selectedOptions || []).map(opt => opt.value);
-            const dueDate = document.getElementById('assignDueDate')?.value;
-            const isMandatory = document.getElementById('assignMandatory')?.checked;
-            const notes = document.getElementById('assignNotes')?.value;
+        displayAssignments(formattedAssignments);
+        
+    } catch (error) {
+        console.error('Error loading assignments with joins:', error);
+        // Fallback to separate queries if joins fail
+        await loadAssignmentsSeparately();
+    }
+}
 
-            if (!quizId || userIds.length === 0) {
-                alert('Please select a quiz and at least one user');
-                return;
-            }
+async function loadAssignmentsSeparately() {
+    try {
+        // Get assignments first
+        const { data: assignments, error: assignmentsError } = await supabase
+            .from('quiz_assignments')
+            .select('id, quiz_id, assigned_to, assigned_by, due_date, assigned_at, is_mandatory, notes');
 
-            const currentUser = await getCurrentUser();
-            if (!currentUser) {
-                alert('You must be logged in to create assignments');
-                return;
-            }
+        if (assignmentsError) throw assignmentsError;
 
-            try {
-                const assignments = userIds.map(userId => ({
-                    quiz_id: quizId,
-                    assigned_to: userId,
-                    assigned_by: currentUser.id,
-                    due_date: dueDate || null,
-                    is_mandatory: isMandatory,
-                    notes: notes || null
-                }));
+        // Get user profiles
+        const { data: userProfiles, error: usersError } = await supabase
+            .from('user_profiles')
+            .select('id, username');
 
-                const { error } = await supabase
-                    .from('quiz_assignments')
-                    .insert(assignments);
+        if (usersError) throw usersError;
 
-                if (error) throw error;
+        // Get quizzes
+        const { data: quizzes, error: quizzesError } = await supabase
+            .from('quizzes')
+            .select('id, title');
 
-                alert(`Assignment created for ${userIds.length} user(s)`);
-                
-                // Clear form
-                document.getElementById('assignQuizSelect').value = '';
-                document.getElementById('assignUsersSelect').value = '';
-                document.getElementById('assignDueDate').value = '';
-                document.getElementById('assignMandatory').checked = false;
-                document.getElementById('assignNotes').value = '';
-                
-                // Reload assignments
-                loadAssignmentsTab();
-                
-            } catch (error) {
-                console.error('Error creating assignment:', error);
-                alert('Error creating assignment: ' + error.message);
-            }
-        }
+        if (quizzesError) throw quizzesError;
+
+        // Combine the data
+        const enrichedAssignments = assignments.map(assignment => {
+            const assignedToUser = userProfiles.find(u => u.id === assignment.assigned_to);
+            const assignedByUser = userProfiles.find(u => u.id === assignment.assigned_by);
+            const quiz = quizzes.find(q => q.id === assignment.quiz_id);
+
+            return {
+                ...assignment,
+                assigned_to_username: assignedToUser?.username || 'Unknown',
+                assigned_by_username: assignedByUser?.username || 'Unknown',
+                quiz_title: quiz?.title || 'Unknown Quiz'
+            };
+        });
+
+        displayAssignments(enrichedAssignments);
+        
+    } catch (error) {
+        console.error('Error loading assignments with separate queries:', error);
+        alert('Error loading assignments: ' + error.message);
+    }
+}
 
         async function removeAssignment(assignmentId) {
             if (!confirm('Are you sure you want to remove this assignment?')) {
