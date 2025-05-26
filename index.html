@@ -1194,80 +1194,98 @@ function showLoginScreen() {
             }
         }
 
-        // Enhanced authentication state change handler
+// Enhanced authentication state change handler with debouncing
+let authStateTimeout = null;
+let isHandlingAuth = false;
+
 supabase.auth.onAuthStateChange(async (event, session) => {
     console.log('Auth event:', event, 'Session exists:', !!session);
     
+    // Clear any pending auth handling
+    if (authStateTimeout) {
+        clearTimeout(authStateTimeout);
+    }
+    
+    // Prevent multiple simultaneous auth handling
+    if (isHandlingAuth) {
+        console.log('Auth handler already running, skipping...');
+        return;
+    }
+    
+    // Debounce auth state changes to prevent rapid firing
+    authStateTimeout = setTimeout(async () => {
+        await handleAuthStateChange(event, session);
+    }, 100);
+});
+
+// Separate function to handle auth state changes
+async function handleAuthStateChange(event, session) {
+    if (isHandlingAuth) {
+        console.log('Auth handling in progress, aborting...');
+        return;
+    }
+    
+    isHandlingAuth = true;
+    
     try {
         if (event === 'SIGNED_IN' && session && session.user) {
-            console.log('User signed in:', session.user.email);
+            console.log('Processing sign in for:', session.user.email);
             
             // Clear any existing auth messages
             hideAuthMessage();
             
-            // Get user profile
-            const userProfile = await getUserProfile(session.user.id);
+            // Get user profile with timeout
+            const userProfile = await Promise.race([
+                getUserProfile(session.user.id),
+                new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Profile fetch timeout')), 5000)
+                )
+            ]);
+            
             console.log('User profile loaded:', userProfile);
             
-            // Update UI
-            document.getElementById('loginScreen').classList.add('hidden');
-            document.getElementById('navbar').classList.remove('hidden');
-            document.getElementById('userInfo').textContent = `${userProfile.username} (${userProfile.role})`;
+            // Update UI - force hide login screen
+            const loginScreen = document.getElementById('loginScreen');
+            const navbar = document.getElementById('navbar');
+            const userInfo = document.getElementById('userInfo');
             
-            // Show appropriate dashboard
-            if (userProfile.role === 'admin') {
-                showAdminDashboard();
-            } else {
-                showUserDashboard();
-            }
+            if (loginScreen) loginScreen.classList.add('hidden');
+            if (navbar) navbar.classList.remove('hidden');
+            if (userInfo) userInfo.textContent = `${userProfile.username} (${userProfile.role})`;
+            
+            // Show appropriate dashboard with small delay to ensure DOM updates
+            setTimeout(() => {
+                if (userProfile.role === 'admin') {
+                    console.log('Showing admin dashboard');
+                    showAdminDashboard();
+                } else {
+                    console.log('Showing user dashboard');
+                    showUserDashboard();
+                }
+            }, 50);
             
         } else if (event === 'SIGNED_OUT' || !session) {
-            console.log('User signed out or no session');
+            console.log('Processing sign out');
             
             // Clear authentication state
             await clearAuthenticationState();
             
-            // Show login screen
-            showLoginScreen();
+            // Show login screen with small delay
+            setTimeout(() => {
+                showLoginScreen();
+            }, 50);
         }
+        
     } catch (error) {
         console.error('Error in auth state change:', error);
         // On any error, show login screen
-        showLoginScreen();
+        setTimeout(() => {
+            showLoginScreen();
+        }, 100);
+    } finally {
+        isHandlingAuth = false;
     }
-});
-
-        // Check auth status on page load
-        async function checkAuthStatus() {
-            try {
-                const { data: { session }, error } = await supabase.auth.getSession();
-                
-                if (error) {
-                    console.error('Error getting session:', error);
-                    showLoginScreen();
-                    return;
-                }
-
-                if (session) {
-                    const userProfile = await getUserProfile(session.user.id);
-                    
-                    document.getElementById('loginScreen').classList.add('hidden');
-                    document.getElementById('navbar').classList.remove('hidden');
-                    document.getElementById('userInfo').textContent = `${userProfile.username} (${userProfile.role})`;
-                    
-                    if (userProfile.role === 'admin') {
-                        showAdminDashboard();
-                    } else {
-                        showUserDashboard();
-                    }
-                } else {
-                    showLoginScreen();
-                }
-            } catch (error) {
-                console.error('Error checking auth status:', error);
-                showLoginScreen();
-            }
-        }
+}
 
         // =============================================================================
         // UTILITY FUNCTIONS
@@ -1289,6 +1307,62 @@ supabase.auth.onAuthStateChange(async (event, session) => {
             return element;
         }
 
+        // Enhanced auth status check
+async function checkAuthStatus() {
+    if (isHandlingAuth) {
+        console.log('Auth handling in progress, skipping status check');
+        return;
+    }
+    
+    try {
+        console.log('Checking initial auth status...');
+        
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+            console.error('Error getting session:', error);
+            showLoginScreen();
+            return;
+        }
+
+        if (session && session.user) {
+            console.log('Found existing session for:', session.user.email);
+            // Let the auth state change handler deal with this
+            // Don't manually update UI here to avoid conflicts
+        } else {
+            console.log('No existing session found');
+            showLoginScreen();
+        }
+    } catch (error) {
+        console.error('Error checking auth status:', error);
+        showLoginScreen();
+    }
+}
+        // Emergency function to force login bypass (for debugging)
+async function forceLoginBypass() {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session && session.user) {
+            console.log('Forcing login for user:', session.user.email);
+            const userProfile = await getUserProfile(session.user.id);
+            
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('navbar').classList.remove('hidden');
+            document.getElementById('userInfo').textContent = `${userProfile.username} (${userProfile.role})`;
+            
+            if (userProfile.role === 'admin') {
+                document.getElementById('adminDashboard').classList.remove('hidden');
+                updateOverview();
+            } else {
+                document.getElementById('userDashboard').classList.remove('hidden');
+                loadUserQuizzes();
+                loadUserResults();
+            }
+        }
+    } catch (error) {
+        console.error('Force login error:', error);
+    }
+}
         // =============================================================================
         // ADMIN DASHBOARD FUNCTIONS
         // =============================================================================
