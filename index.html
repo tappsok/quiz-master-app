@@ -1642,91 +1642,130 @@ async function forceLoginBypass() {
         }
 
         async function loadQuizResults() {
-            const quizId = document.getElementById('resultQuizSelect').value;
-            if (!quizId) {
-                document.getElementById('quizResultsContainer').classList.add('hidden');
-                return;
+    const quizId = document.getElementById('resultQuizSelect').value;
+    if (!quizId) {
+        document.getElementById('quizResultsContainer').classList.add('hidden');
+        return;
+    }
+    
+    try {
+        console.log('Loading results for quiz:', quizId);
+        
+        // Get quiz attempts - using simple select without joins
+        const { data: attempts, error: attemptsError } = await supabase
+            .from('quiz_attempts')
+            .select('user_id, attempt_number, score, is_passed, completed_at')
+            .eq('quiz_id', quizId)
+            .order('completed_at', { ascending: false });
+
+        if (attemptsError) {
+            console.error('Attempts error:', attemptsError);
+            throw attemptsError;
+        }
+
+        console.log('Found attempts:', attempts?.length || 0);
+
+        // Get user profiles separately
+        const { data: userProfiles, error: usersError } = await supabase
+            .from('user_profiles')
+            .select('id, username');
+
+        if (usersError) {
+            console.error('Users error:', usersError);
+            throw usersError;
+        }
+
+        console.log('Found user profiles:', userProfiles?.length || 0);
+
+        // Show results container
+        document.getElementById('quizResultsContainer').classList.remove('hidden');
+        const tbody = document.getElementById('resultsTableBody');
+        tbody.innerHTML = '';
+
+        if (!attempts || attempts.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #666;">No quiz attempts found for this quiz</td></tr>';
+            return;
+        }
+
+        // Group attempts by user
+        const userResults = {};
+        attempts.forEach(attempt => {
+            const userId = attempt.user_id;
+            if (!userResults[userId]) {
+                const userProfile = userProfiles.find(u => u.id === userId);
+                userResults[userId] = {
+                    username: userProfile?.username || 'Unknown User',
+                    attempts: [],
+                    bestScore: 0,
+                    isPassed: false
+                };
             }
             
-            try {
-                const { data: results, error } = await supabase
-                    .from('quiz_attempts')
-                    .select(`
-                        user_id,
-                        attempt_number,
-                        score,
-                        is_passed,
-                        completed_at,
-                        user_profiles (username)
-                    `)
-                    .eq('quiz_id', quizId)
-                    .order('completed_at', { ascending: false });
-
-                if (error) throw error;
-
-                // Group by user
-                const userResults = {};
-                results.forEach(attempt => {
-                    const userId = attempt.user_id;
-                    if (!userResults[userId]) {
-                        userResults[userId] = {
-                            username: attempt.user_profiles?.username || 'Unknown',
-                            attempts: [],
-                            bestScore: 0,
-                            isPassed: false
-                        };
-                    }
-                    userResults[userId].attempts.push(attempt);
-                    userResults[userId].bestScore = Math.max(userResults[userId].bestScore, attempt.score);
-                    if (attempt.is_passed) {
-                        userResults[userId].isPassed = true;
-                    }
-                });
-                
-                const tbody = document.getElementById('resultsTableBody');
-                tbody.innerHTML = '';
-                
-                Object.values(userResults).forEach(result => {
-                    const lastAttempt = result.attempts[0];
-                    const tr = document.createElement('tr');
-                    
-                    // Create cells safely
-                    const userCell = createTextElement('td', result.username);
-                    const attemptsCell = createTextElement('td', result.attempts.length.toString());
-                    const scoreCell = createTextElement('td', result.bestScore + '%');
-                    
-                    const statusCell = document.createElement('td');
-                    const statusSpan = document.createElement('span');
-                    statusSpan.textContent = result.isPassed ? 'Passed' : 'Not Passed';
-                    statusSpan.style.color = result.isPassed ? '#27ae60' : '#e74c3c';
-                    statusCell.appendChild(statusSpan);
-                    
-                    const dateCell = createTextElement('td', new Date(lastAttempt.completed_at).toLocaleString());
-                    
-                    const actionsCell = document.createElement('td');
-                    const detailsButton = document.createElement('button');
-                    detailsButton.className = 'btn btn-secondary';
-                    detailsButton.textContent = 'View Details';
-                    detailsButton.onclick = () => viewUserDetails(lastAttempt.user_id, quizId);
-                    actionsCell.appendChild(detailsButton);
-                    
-                    tr.appendChild(userCell);
-                    tr.appendChild(attemptsCell);
-                    tr.appendChild(scoreCell);
-                    tr.appendChild(statusCell);
-                    tr.appendChild(dateCell);
-                    tr.appendChild(actionsCell);
-                    
-                    tbody.appendChild(tr);
-                });
-                
-                document.getElementById('quizResultsContainer').classList.remove('hidden');
-                
-            } catch (error) {
-                console.error('Error loading quiz results:', error);
-                alert('Error loading results: ' + error.message);
+            userResults[userId].attempts.push(attempt);
+            userResults[userId].bestScore = Math.max(userResults[userId].bestScore, attempt.score || 0);
+            if (attempt.is_passed) {
+                userResults[userId].isPassed = true;
             }
-        }
+        });
+
+        // Display results
+        Object.values(userResults).forEach(result => {
+            const lastAttempt = result.attempts[0]; // Most recent
+            const tr = document.createElement('tr');
+            
+            // User name
+            const userCell = createTextElement('td', result.username);
+            tr.appendChild(userCell);
+            
+            // Number of attempts
+            const attemptsCell = createTextElement('td', result.attempts.length.toString());
+            tr.appendChild(attemptsCell);
+            
+            // Best score
+            const scoreCell = createTextElement('td', result.bestScore + '%');
+            tr.appendChild(scoreCell);
+            
+            // Pass status
+            const statusCell = document.createElement('td');
+            const statusSpan = document.createElement('span');
+            statusSpan.textContent = result.isPassed ? 'Passed' : 'Not Passed';
+            statusSpan.style.color = result.isPassed ? '#27ae60' : '#e74c3c';
+            statusCell.appendChild(statusSpan);
+            tr.appendChild(statusCell);
+            
+            // Last attempt date
+            const dateCell = createTextElement('td', 
+                lastAttempt.completed_at ? 
+                new Date(lastAttempt.completed_at).toLocaleString() : 
+                'N/A'
+            );
+            tr.appendChild(dateCell);
+            
+            // Actions
+            const actionsCell = document.createElement('td');
+            const detailsButton = document.createElement('button');
+            detailsButton.className = 'btn btn-secondary';
+            detailsButton.textContent = 'View Details';
+            detailsButton.onclick = () => {
+                alert(`${result.username} Details:\n\nAttempts: ${result.attempts.length}\nBest Score: ${result.bestScore}%\nStatus: ${result.isPassed ? 'Passed' : 'Not Passed'}`);
+            };
+            actionsCell.appendChild(detailsButton);
+            tr.appendChild(actionsCell);
+            
+            tbody.appendChild(tr);
+        });
+        
+        console.log('Results displayed successfully');
+        
+    } catch (error) {
+        console.error('Error loading quiz results:', error);
+        
+        // Show error in the table
+        const tbody = document.getElementById('resultsTableBody');
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #e74c3c;">Error loading results: ${error.message}</td></tr>`;
+        document.getElementById('quizResultsContainer').classList.remove('hidden');
+    }
+}
 
         function viewUserDetails(userId, quizId) {
             alert('View details feature coming soon!');
