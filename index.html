@@ -1593,6 +1593,155 @@ async function loadAssignmentsTab() {
     }
 }
 
+function populateAssignmentForm(users, quizzes) {
+            // User dropdown
+            const userSelect = document.getElementById('assignUsersSelect');
+            if (userSelect) {
+                userSelect.innerHTML = '';
+                users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = user.username;
+                    userSelect.appendChild(option);
+                });
+            }
+
+            // Quiz dropdown
+            const quizSelect = document.getElementById('assignQuizSelect');
+            if (quizSelect) {
+                quizSelect.innerHTML = '<option value="">-- Select Quiz --</option>';
+                quizzes.forEach(quiz => {
+                    const option = document.createElement('option');
+                    option.value = quiz.id;
+                    option.textContent = quiz.title;
+                    quizSelect.appendChild(option);
+                });
+            }
+        }
+
+        function displayAssignments(assignments) {
+            const tbody = document.getElementById('assignmentsTableBody');
+            if (!tbody) return;
+            
+            tbody.innerHTML = '';
+            
+            if (assignments.length === 0) {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td colspan="6" style="text-align: center; color: #666;">No assignments created yet</td>';
+                tbody.appendChild(tr);
+                return;
+            }
+            
+            assignments.forEach(assignment => {
+                const tr = document.createElement('tr');
+                
+                const quizCell = createTextElement('td', assignment.quiz_title);
+                const userCell = createTextElement('td', assignment.assigned_to_username);
+                const dueDateCell = createTextElement('td', assignment.due_date ? new Date(assignment.due_date).toLocaleDateString() : 'No due date');
+                const mandatoryCell = createTextElement('td', assignment.is_mandatory ? 'Yes' : 'No');
+                const assignedCell = createTextElement('td', new Date(assignment.assigned_at).toLocaleDateString());
+                
+                const actionsCell = document.createElement('td');
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'btn btn-danger';
+                deleteButton.textContent = 'Remove';
+                deleteButton.onclick = () => removeAssignment(assignment.id);
+                actionsCell.appendChild(deleteButton);
+                
+                tr.appendChild(quizCell);
+                tr.appendChild(userCell);
+                tr.appendChild(dueDateCell);
+                tr.appendChild(mandatoryCell);
+                tr.appendChild(assignedCell);
+                tr.appendChild(actionsCell);
+                
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function createAssignment() {
+            const quizId = document.getElementById('assignQuizSelect')?.value;
+            const userIds = Array.from(document.getElementById('assignUsersSelect')?.selectedOptions || []).map(opt => opt.value);
+            const dueDate = document.getElementById('assignDueDate')?.value;
+            const isMandatory = document.getElementById('assignMandatory')?.checked;
+            const notes = document.getElementById('assignNotes')?.value;
+
+            if (!quizId || userIds.length === 0) {
+                alert('Please select a quiz and at least one user');
+                return;
+            }
+
+            const currentUser = await getCurrentUser();
+            if (!currentUser) {
+                alert('You must be logged in to create assignments');
+                return;
+            }
+
+            try {
+                // Get current user's profile ID (since we're using user_profiles references)
+                const { data: userProfile, error: profileError } = await supabase
+                    .from('user_profiles')
+                    .select('id')
+                    .eq('id', currentUser.id)
+                    .single();
+
+                if (profileError) throw profileError;
+
+                const assignments = userIds.map(userId => ({
+                    quiz_id: quizId,
+                    assigned_to: userId,
+                    assigned_by: userProfile.id,
+                    due_date: dueDate || null,
+                    is_mandatory: isMandatory,
+                    notes: notes || null
+                }));
+
+                const { error } = await supabase
+                    .from('quiz_assignments')
+                    .insert(assignments);
+
+                if (error) throw error;
+
+                alert(`Assignment created for ${userIds.length} user(s)`);
+                
+                // Clear form
+                document.getElementById('assignQuizSelect').value = '';
+                document.getElementById('assignUsersSelect').value = '';
+                document.getElementById('assignDueDate').value = '';
+                document.getElementById('assignMandatory').checked = false;
+                document.getElementById('assignNotes').value = '';
+                
+                // Reload assignments
+                loadAssignmentsTab();
+                
+            } catch (error) {
+                console.error('Error creating assignment:', error);
+                alert('Error creating assignment: ' + error.message);
+            }
+        }
+
+        async function removeAssignment(assignmentId) {
+            if (!confirm('Are you sure you want to remove this assignment?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('quiz_assignments')
+                    .delete()
+                    .eq('id', assignmentId);
+
+                if (error) throw error;
+
+                alert('Assignment removed successfully');
+                loadAssignmentsTab();
+                
+            } catch (error) {
+                console.error('Error removing assignment:', error);
+                alert('Error removing assignment: ' + error.message);
+            }
+        }
+        
 async function loadAssignmentsWithJoins() {
     try {
         const { data: assignments, error } = await supabase
