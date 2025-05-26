@@ -1004,38 +1004,94 @@ Q3: What is 2 + 2?
         }
 
         // Login function
-        async function login(email, password) {
-            try {
-                showAuthMessage('Signing in...', 'info');
-                
-                const { data, error } = await supabase.auth.signInWithPassword({
-                    email: email,
-                    password: password,
-                });
+        // Enhanced login function
+async function login(email, password) {
+    try {
+        showAuthMessage('Signing in...', 'info');
+        
+        // Clear any existing session first
+        await clearAuthenticationState();
+        
+        // Sign in with Supabase
+        const { data, error } = await supabase.auth.signInWithPassword({
+            email: email,
+            password: password,
+        });
 
-                if (error) throw error;
+        if (error) throw error;
 
-                showAuthMessage('Login successful!', 'success');
-                
-            } catch (error) {
-                console.error('Login error:', error);
-                showAuthMessage(error.message, 'error');
-            }
+        showAuthMessage('Login successful!', 'success');
+        
+        // Don't manually handle login success here - let the auth state listener handle it
+        
+    } catch (error) {
+        console.error('Login error:', error);
+        showAuthMessage(error.message, 'error');
+        
+        // Clear form on error
+        document.getElementById('password').value = '';
+    }
+}
+
+        // Enhanced logout function
+async function logout() {
+    try {
+        // Clear any running timers
+        if (quizTimer) {
+            clearInterval(quizTimer);
+            quizTimer = null;
         }
-
-        // Logout function
-        async function logout() {
-            try {
-                const { error } = await supabase.auth.signOut();
-                if (error) throw error;
-                
-                showLoginScreen();
-                
-            } catch (error) {
-                console.error('Logout error:', error);
-                alert('Error logging out: ' + error.message);
-            }
+        
+        // Sign out from Supabase
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+            console.error('Supabase logout error:', error);
+            // Continue with logout even if Supabase fails
         }
+        
+        // Force clear all authentication state
+        await clearAuthenticationState();
+        
+        // Show login screen immediately
+        showLoginScreen();
+        
+        // Force page reload to clear any remaining state
+        setTimeout(() => {
+            window.location.reload();
+        }, 100);
+        
+    } catch (error) {
+        console.error('Logout error:', error);
+        // Force logout even if there's an error
+        await clearAuthenticationState();
+        showLoginScreen();
+        window.location.reload();
+    }
+}
+
+// Helper function to clear all authentication state
+async function clearAuthenticationState() {
+    try {
+        // Clear any cached session data
+        localStorage.removeItem('supabase.auth.token');
+        sessionStorage.clear();
+        
+        // Clear any stored user data
+        localStorage.removeItem('quiz-app-user');
+        localStorage.removeItem('user-profile');
+        
+        // Reset any global variables if they exist
+        if (typeof currentUser !== 'undefined') {
+            currentUser = null;
+        }
+        if (typeof userProfile !== 'undefined') {
+            userProfile = null;
+        }
+        
+    } catch (error) {
+        console.error('Error clearing auth state:', error);
+    }
+}
 
         // Show/hide auth messages
         function showAuthMessage(message, type) {
@@ -1123,27 +1179,48 @@ Q3: What is 2 + 2?
             }
         }
 
-        // Handle authentication state changes
-        supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log('Auth event:', event, session);
+        // Enhanced authentication state change handler
+supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('Auth event:', event, 'Session exists:', !!session);
+    
+    try {
+        if (event === 'SIGNED_IN' && session && session.user) {
+            console.log('User signed in:', session.user.email);
             
-            if (event === 'SIGNED_IN' && session) {
-                const userProfile = await getUserProfile(session.user.id);
-                
-                document.getElementById('loginScreen').classList.add('hidden');
-                document.getElementById('navbar').classList.remove('hidden');
-                document.getElementById('userInfo').textContent = `${userProfile.username} (${userProfile.role})`;
-                
-                if (userProfile.role === 'admin') {
-                    showAdminDashboard();
-                } else {
-                    showUserDashboard();
-                }
-                
-            } else if (event === 'SIGNED_OUT') {
-                showLoginScreen();
+            // Clear any existing auth messages
+            hideAuthMessage();
+            
+            // Get user profile
+            const userProfile = await getUserProfile(session.user.id);
+            console.log('User profile loaded:', userProfile);
+            
+            // Update UI
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('navbar').classList.remove('hidden');
+            document.getElementById('userInfo').textContent = `${userProfile.username} (${userProfile.role})`;
+            
+            // Show appropriate dashboard
+            if (userProfile.role === 'admin') {
+                showAdminDashboard();
+            } else {
+                showUserDashboard();
             }
-        });
+            
+        } else if (event === 'SIGNED_OUT' || !session) {
+            console.log('User signed out or no session');
+            
+            // Clear authentication state
+            await clearAuthenticationState();
+            
+            // Show login screen
+            showLoginScreen();
+        }
+    } catch (error) {
+        console.error('Error in auth state change:', error);
+        // On any error, show login screen
+        showLoginScreen();
+    }
+});
 
         // Check auth status on page load
         async function checkAuthStatus() {
