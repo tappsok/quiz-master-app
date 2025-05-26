@@ -1111,21 +1111,36 @@ async function clearAuthenticationState() {
             document.getElementById('authMessage').style.display = 'none';
         }
 
-        // Show login screen
-        function showLoginScreen() {
-            document.getElementById('loginScreen').classList.remove('hidden');
-            document.getElementById('navbar').classList.add('hidden');
-            document.getElementById('adminDashboard').classList.add('hidden');
-            document.getElementById('userDashboard').classList.add('hidden');
-            document.getElementById('quizInterface').classList.add('hidden');
-            document.getElementById('resultsScreen').classList.add('hidden');
-            
-            // Clear form
-            document.getElementById('email').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('confirmPassword').value = '';
-            hideAuthMessage();
-        }
+        // Enhanced login screen function
+function showLoginScreen() {
+    // Hide all other screens
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('navbar').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.add('hidden');
+    document.getElementById('userDashboard').classList.add('hidden');
+    document.getElementById('quizInterface').classList.add('hidden');
+    document.getElementById('resultsScreen').classList.add('hidden');
+    
+    // Clear and reset form
+    document.getElementById('email').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('confirmPassword').value = '';
+    
+    // Reset auth mode to login
+    isSignUpMode = false;
+    document.getElementById('authTitle').textContent = 'Login to Quiz Master';
+    document.getElementById('authButton').textContent = 'Login';
+    document.getElementById('confirmPasswordGroup').style.display = 'none';
+    document.getElementById('confirmPassword').required = false;
+    
+    // Clear any messages
+    hideAuthMessage();
+    
+    // Focus on email field
+    setTimeout(() => {
+        document.getElementById('email').focus();
+    }, 100);
+}
 
         // Get current user from session
         async function getCurrentUser() {
